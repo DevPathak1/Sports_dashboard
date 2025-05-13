@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/output_athlete.dart';
+import 'package:sports_dashboard/models/workout_data.dart';
+
 
 class OutputApiService {
   static final String _baseUrl = dotenv.env['API_BASE_URL_OUTPUT']!;
@@ -26,36 +28,35 @@ class OutputApiService {
   }
 
   // Fetch Workout Data for Selected Athletes
-  static Future<List<Map<String, dynamic>>> fetchWorkoutData(List<String> athleteIds, DateTime startDate, DateTime endDate) async {
-    final String url = '$_baseUrl/workout-data'; // Replace with the actual workout data endpoint
+  static Future<List<WorkoutData>> fetchWorkoutData(
+    List<String> athleteIds, DateTime startDate, DateTime endDate) async {
+  final requestBody = json.encode({
+    'startDate': startDate.toIso8601String(),
+    'endDate': endDate.toIso8601String(),
+    'exerciseMetadataIds': ['BARBELL_POWER_CLEAN'],
+    'athleteIds': athleteIds,
+  });
 
-    // Create the request body
-    final requestBody = json.encode({
-      'startDate': startDate.toIso8601String(),
-      'endDate': endDate.toIso8601String(),
-      'exerciseMetadataIds': ['BARBELL_BENCH_PRESS_SP'], // Add any other exercises you need
-      'athleteIds': athleteIds, // This will be the list of athlete IDs from API 2
-    });
+  try {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/exercises/measurements'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${dotenv.env['API_TOKEN_OUTPUT']}',
+      },
+      body: requestBody,
+    );
 
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/exercises/measurements'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${dotenv.env['API_TOKEN_OUTPUT']}', // Replace with your actual JWT token
-        },
-        body: requestBody,
-      );
-
-      if (response.statusCode == 200) {
-        // Parse the response body into the list of workout data
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((item) => item as Map<String, dynamic>).toList();
-      } else {
-        throw Exception('Failed to load workout data');
-      }
-    } catch (e) {
-      throw Exception('Error fetching workout data: $e');
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((item) => WorkoutData.fromJson(item)).toList();
+    } else {
+      throw Exception(
+          'Failed to load workout data: ${response.statusCode} ${response.body}');
     }
+  } catch (e) {
+    throw Exception('Error fetching workout data: $e');
   }
+}
+
 }

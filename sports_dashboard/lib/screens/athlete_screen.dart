@@ -32,34 +32,39 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
   List<WorkoutData> _workoutData = [];
   bool _isLoadingWorkouts = false;
 
-  
-
   Future<void> _loadWorkoutData(List<String> athleteIds) async {
-    try {
-      setState(() {
-        _isLoadingWorkouts = true;
-      });
-
-      final startDate = DateTime(2025, 4, 1);
-      final endDate = DateTime(2025, 5, 1);
-
-      final data = await OutputApiService.fetchWorkoutData(
-        athleteIds,
-        startDate,
-        endDate,
-      );
-
-      setState(() {
-        _workoutData = data.map((item) => WorkoutData.fromJson(item)).toList();
-      });
-    } catch (e) {
-      print('Error fetching workout data: $e');
-    } finally {
-      setState(() {
-        _isLoadingWorkouts = false;
-      });
+  try {
+    if (athleteIds.isEmpty) {
+      print('⚠️ No athlete IDs — skipping workout fetch.');
+      return;
     }
+
+    setState(() {
+      _isLoadingWorkouts = true;
+    });
+
+    final startDate = DateTime(2025, 4, 1);
+    final endDate = DateTime(2025, 5, 1);
+
+    final data = await OutputApiService.fetchWorkoutData(
+      athleteIds,
+      startDate,
+      endDate,
+    );
+
+    print('📊 Workout data returned: ${data.length}');
+    setState(() {
+      _workoutData = data;
+    });
+
+  } catch (e) {
+    print('❌ Error fetching workout data: $e');
+  } finally {
+    setState(() {
+      _isLoadingWorkouts = false;
+    });
   }
+}
 
   Future<void> _loadAthletes() async {
     try {
@@ -75,17 +80,24 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
         }
       });
 
-      // Match and extract athlete IDs from Output API (API 2)
-      final outputAthletes = await OutputApiService.fetchOutputAthletes(); // contains id, first_name, last_name
-      final matchedIds = athletes.map((athlete) {
-        final match = outputAthletes.firstWhere(
-          (out) =>
-              out.first_name.toLowerCase() == athlete.first_name.toLowerCase() &&
-              out.last_name.toLowerCase() == athlete.last_name.toLowerCase(),
-        );
-        return match.id;
-      }).whereType<String>().toList();
+      final outputAthletes = await OutputApiService.fetchOutputAthletes();
 
+      final matchedIds = <String>[];
+
+      for (final athlete in athletes) {
+        final matches = outputAthletes.where(
+          (out) =>
+              out.first_name == athlete.first_name &&
+              out.last_name == athlete.last_name,
+        ).toList();
+        if (matches.isNotEmpty) {
+          matchedIds.add(matches.first.id);
+
+        } else {
+          print('⚠️ No match for ${athlete.first_name} ${athlete.last_name}');
+        }
+      }
+      print('✅ Matched athlete IDs: $matchedIds');
       await _loadWorkoutData(matchedIds);
     } catch (e) {
       print('Error loading athletes or workout data: $e');
@@ -97,13 +109,14 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
     super.initState();
     _loadAthletes();
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Select Athlete')),
       body: _athletes.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
@@ -154,8 +167,11 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
                   const SizedBox(height: 20),
                   if (_selectedAthlete != null && !_isLoadingWorkouts)
                     ..._workoutData
-                        .where((d) => d.firstName.toLowerCase() == _selectedAthlete!.first_name.toLowerCase() &&
-                                     d.lastName.toLowerCase() == _selectedAthlete!.last_name.toLowerCase())
+                        .where((d) =>
+                            d.firstName.toLowerCase().trim() ==
+                                _selectedAthlete!.first_name.toLowerCase().trim() &&
+                            d.lastName.toLowerCase().trim() ==
+                                _selectedAthlete!.last_name.toLowerCase().trim())
                         .map((data) => Padding(
                               padding: const EdgeInsets.only(top: 16.0),
                               child: Card(
@@ -184,8 +200,7 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
                                   ),
                                 ),
                               ),
-                            ))
-                        ,
+                            )),
                 ],
               ),
             ),

@@ -6,7 +6,7 @@ import '../models/athlete.dart';
 
 class ApiService {
   static final String _baseUrl = dotenv.env['API_BASE_URL']!;
-  static final String _token = dotenv.env['API_TOK2EN']!; 
+  static final String _token = dotenv.env['API_TOKEN']!; 
 
   static Future<List<Athlete>> fetchAthletes() async {
     final response = await http.get(

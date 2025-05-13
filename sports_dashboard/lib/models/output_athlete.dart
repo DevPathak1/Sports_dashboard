@@ -13,8 +13,8 @@ class Athlete_Output{
   factory Athlete_Output.fromJson(Map<String, dynamic> json) {
     return Athlete_Output(
       id: json['id']?.toString() ?? '',
-      first_name: json['firstname'] ?? '',
-      last_name: json['lastname'] ?? '',
+      first_name: json['firstName'] ?? '',
+      last_name: json['lastName'] ?? '',
     );
   }
 }
