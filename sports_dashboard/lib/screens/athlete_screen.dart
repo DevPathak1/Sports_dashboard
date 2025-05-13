@@ -32,10 +32,33 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
   List<WorkoutData> _workoutData = [];
   bool _isLoadingWorkouts = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadAthletes();
+  
+
+  Future<void> _loadWorkoutData(List<String> athleteIds) async {
+    try {
+      setState(() {
+        _isLoadingWorkouts = true;
+      });
+
+      final startDate = DateTime(2025, 4, 1);
+      final endDate = DateTime(2025, 5, 1);
+
+      final data = await OutputApiService.fetchWorkoutData(
+        athleteIds,
+        startDate,
+        endDate,
+      );
+
+      setState(() {
+        _workoutData = data.map((item) => WorkoutData.fromJson(item)).toList();
+      });
+    } catch (e) {
+      print('Error fetching workout data: $e');
+    } finally {
+      setState(() {
+        _isLoadingWorkouts = false;
+      });
+    }
   }
 
   Future<void> _loadAthletes() async {
@@ -69,33 +92,11 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
     }
   }
 
-  Future<void> _loadWorkoutData(List<String> athleteIds) async {
-    try {
-      setState(() {
-        _isLoadingWorkouts = true;
-      });
-
-      final startDate = DateTime(2025, 4, 1);
-      final endDate = DateTime(2025, 5, 1);
-
-      final data = await OutputApiService.fetchWorkoutData(
-        athleteIds,
-        startDate,
-        endDate,
-      );
-
-      setState(() {
-        _workoutData = data.map((item) => WorkoutData.fromJson(item)).toList();
-      });
-    } catch (e) {
-      print('Error fetching workout data: $e');
-    } finally {
-      setState(() {
-        _isLoadingWorkouts = false;
-      });
-    }
+  @override
+  void initState() {
+    super.initState();
+    _loadAthletes();
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
