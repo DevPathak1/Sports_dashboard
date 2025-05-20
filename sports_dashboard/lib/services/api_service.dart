@@ -9,12 +9,12 @@ class ApiService {
   static final String _token = dotenv.env['API_TOKEN']!; 
 
   static Future<List<Athlete>> fetchAthletes() async {
-  final response = await http.get(
-    Uri.parse(_baseUrl),
-    headers: {
-      'Authorization': 'Bearer ${dotenv.env['API_TOKEN']}',
-    },
-  );
+    final response = await http.get(
+      Uri.parse(_baseUrl),
+      headers: {
+        'Authorization': 'Bearer ${dotenv.env['API_TOKEN']}',
+      },
+    );
 
   if (response.statusCode == 200) {
     final List<dynamic> data = jsonDecode(response.body);

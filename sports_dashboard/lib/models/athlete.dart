@@ -7,6 +7,8 @@ class Athlete {
   final String photo_url;
   final String position;
   final String birthday;
+  final List<String> tag_list;
+  String? outputId;
 
   Athlete({
     required this.id,
@@ -16,6 +18,8 @@ class Athlete {
     required this.photo_url,
     required this.position,
     required this.birthday,
+    required this.tag_list,
+    this.outputId,
   });
 
   factory Athlete.fromJson(Map<String, dynamic> json) {
@@ -27,6 +31,7 @@ class Athlete {
       photo_url: json['image'] ?? '',
       position: json['position'] ?? '',
       birthday: json['date_of_birth_date'] ?? '',
+      tag_list: List<String>.from(json['tag_list'] ?? []),
     );
   }
 }
