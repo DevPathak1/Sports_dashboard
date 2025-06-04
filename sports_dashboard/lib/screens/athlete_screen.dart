@@ -101,8 +101,13 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
     try {
       final allAthletes = await ApiService.fetchAthletes();
       final athletes = allAthletes
-          .where((athlete) => athlete.tag_list.contains('2024 Starter'))
+          .where((athlete) => athlete.current_team_id=='75054b55-9900-11e3-b9b6-22000af8166b')
           .toList();
+      
+      for(var athlete in allAthletes.take(5)){
+        print('Athlete: ${athlete.current_team_id}');
+      }
+      print(athletes);
 
       final outputAthletes = await OutputApiService.fetchOutputAthletes();
       final exercises = await OutputApiService.fetchExerciseMetadata();

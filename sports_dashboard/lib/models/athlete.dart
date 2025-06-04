@@ -7,7 +7,7 @@ class Athlete {
   final String photo_url;
   final String position;
   final String birthday;
-  final List<String> tag_list;
+  final String current_team_id;
   String? outputId;
 
   Athlete({
@@ -18,7 +18,7 @@ class Athlete {
     required this.photo_url,
     required this.position,
     required this.birthday,
-    required this.tag_list,
+    required this.current_team_id,
     this.outputId,
   });
 
@@ -31,7 +31,7 @@ class Athlete {
       photo_url: json['image'] ?? '',
       position: json['position'] ?? '',
       birthday: json['date_of_birth_date'] ?? '',
-      tag_list: List<String>.from(json['tag_list'] ?? []),
+      current_team_id: json['current_team_id'] ?? '', 
     );
   }
 }
