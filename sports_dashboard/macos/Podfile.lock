@@ -42,7 +42,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Firebase: 0312a2352584f782ea56f66d91606891d4607f06
-  firebase_core: b5b8b60dad71f93132bbaa21e8d1379367d824f0
+  firebase_core: e324fc945c2abe77065357fd9c8dd6853d8a88a5
   FirebaseCore: 7ec4d0484817f12c3373955bc87762d96842d483
   FirebaseCoreInternal: df84dd300b561c27d5571684f389bf60b0a5c934
   FlutterMacOS: 8f6f14fa908a6fb3fba0cd85dbd81ec4b251fb24

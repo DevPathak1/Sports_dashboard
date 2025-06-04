@@ -3,6 +3,7 @@ import 'package:sports_dashboard/models/athlete.dart';
 import 'package:sports_dashboard/models/workout_data.dart';
 import 'package:sports_dashboard/services/api_service.dart';
 import 'package:sports_dashboard/services/api_output.dart';
+import 'package:sports_dashboard/services/api_vald.dart';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
@@ -68,8 +69,14 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
           exerciseId: _selectedExercise!['id'],
         );
 
-        final parsed = rawWorkouts.map((item) => WorkoutData.fromJson(item)).toList();
-        allWorkouts.addAll(parsed);
+        try {
+          final parsed = rawWorkouts.map((item) => WorkoutData.fromJson(item)).toList();
+          allWorkouts.addAll(parsed);
+        } catch (e, stack) {
+        print('❌ Error parsing workouts: $e');
+        print(stack);
+}
+
 
         currentStart = cappedEnd.add(const Duration(days: 1));
       }
@@ -105,35 +112,54 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
           .toList();
 
       final outputAthletes = await OutputApiService.fetchOutputAthletes();
-      final exercises = await OutputApiService.fetchExerciseMetadata();
+      final valdAthletes = await ValdApiService().fetchAthletes(
+        '2549e0dc-292c-4820-a9ec-1f72652178e1',
+        'a5132d0c-bddf-4827-8571-fec043a2c87f',
+      );
+final exercises = await OutputApiService.fetchExerciseMetadata();
 
-      setState(() {
-        _athletes = athletes;
-        _exerciseOptions = exercises;
-        if (athletes.isNotEmpty) {
-          _selectedAthlete = athletes.first;
-        }
-        if (exercises.isNotEmpty) {
-          _selectedExercise = exercises.first;
-        }
-      });
+setState(() {
+  _athletes = athletes;
+  _exerciseOptions = exercises;
+  if (athletes.isNotEmpty) {
+    _selectedAthlete = athletes.first;
+  }
+  if (exercises.isNotEmpty) {
+    _selectedExercise = exercises.first;
+  }
+});
 
-      final matchedIds = <String>[];
+final matchedIds = <String>[];
 
-      for (final athlete in athletes) {
-        final match = outputAthletes.where(
-          (out) =>
-            _normalize(out.first_name) == _normalize(athlete.first_name) &&
-            _normalize(out.last_name) == _normalize(athlete.last_name),
-        ).toList();
-        if (match != null) {
-          matchedIds.add(match.first.id);
-        } else {
-          print('⚠️ No match for ${athlete.first_name} ${athlete.last_name}');
-        }
-      }
+for (final athlete in athletes) {
+  final match = outputAthletes.where(
+    (out) =>
+      _normalize(out.first_name) == _normalize(athlete.first_name) &&
+      _normalize(out.last_name) == _normalize(athlete.last_name),
+  ).toList();
+  if (match.isNotEmpty) {
+    matchedIds.add(match.first.id);
+  } else {
+    print('⚠️ No Output match for ${athlete.first_name} ${athlete.last_name}');
+  }
 
-      await _loadWorkoutData(matchedIds);
+/*  final valdMatch = valdAthletes.where(
+  (vald) =>
+    _normalize(vald.first_name) == _normalize(athlete.first_name) &&
+    _normalize(vald.last_name) == _normalize(athlete.last_name),
+).toList();
+
+if (valdMatch.isNotEmpty) {
+  print('✅ Found Vald match for ${athlete.first_name} ${athlete.last_name}');
+  athlete.valdId = valdMatch.first.id;
+} else {
+  print('⚠️ No Vald match for ${athlete.first_name} ${athlete.last_name}');
+}*/
+
+}
+
+await _loadWorkoutData(matchedIds);
+
     } catch (e) {
       print('❌ Error loading athletes or workout data: $e');
     }
