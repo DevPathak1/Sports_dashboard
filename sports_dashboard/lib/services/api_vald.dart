@@ -8,26 +8,30 @@ class ValdApiService {
   final String baseUrl = dotenv.env['API_BASE_URL_VALD'] ?? '';
 
   Future<List<Athlete_Vald>> fetchAthletes(String tenantId, String groupId) async {
-    final token = await ValdAuthService.getToken();
+  final token = await ValdAuthService.getToken();
 
-    final uri = Uri.parse('$baseUrl/profiles').replace(queryParameters: {
-      'TenantId': tenantId,
-      'GroupId': groupId,
-    });
+  final uri = Uri.parse('$baseUrl/profiles').replace(queryParameters: {
+    'TenantId': tenantId,
+    'GroupId': groupId,
+  });
 
-    final response = await http.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+  final response = await http.get(
+    uri,
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    },
+  );
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      return data.map((json) => Athlete_Vald.fromJson(json)).toList();
-    } else {
-      throw Exception('Failed to fetch Vald athletes: ${response.statusCode}');
-    }
+  if (response.statusCode == 200) {
+    final Map<String, dynamic> jsonMap = json.decode(response.body);
+    print('🧪 Vald decoded type = ${jsonMap.runtimeType}');
+    print('🧪 Vald response body = ${response.body}');
+
+    final List<dynamic> data = jsonMap['profiles'];  
+    return data.map((json) => Athlete_Vald.fromJson(json)).toList();
+  } else {
+    throw Exception('Failed to fetch Vald athletes: ${response.statusCode}');
   }
+}
 }
