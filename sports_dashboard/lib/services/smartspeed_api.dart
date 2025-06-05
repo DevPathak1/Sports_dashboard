@@ -4,9 +4,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'vald_auth_service.dart'; // your token file
 
 class SmartSpeedService {
-  static final String? _baseUrl = dotenv.env['SMARTSPEED_API_ENDPOINT'];
-  static final String? _tenantId = dotenv.env['tenant_id'];
-  static final String? _groupId = dotenv.env['group_id'];
+  static final String? _baseUrl = dotenv.env['SMARTSPEED_ENDPOINT'];
+  static final String? _tenantId = dotenv.env['TENANT_ID'];
+  static final String? _groupId = dotenv.env['GROUP_ID'];
 
   /// Fetch test results from SmartSpeed API for a given athlete
   static Future<Map<String, dynamic>> fetchSmartSpeedTest({
