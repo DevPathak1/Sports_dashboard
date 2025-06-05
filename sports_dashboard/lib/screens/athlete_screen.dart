@@ -4,6 +4,8 @@ import 'package:sports_dashboard/models/workout_data.dart';
 import 'package:sports_dashboard/services/api_service.dart';
 import 'package:sports_dashboard/services/api_output.dart';
 import 'package:sports_dashboard/services/api_vald.dart';
+import 'package:sports_dashboard/models/smartspeed.dart';
+import 'package:sports_dashboard/services/smartspeed_api.dart' as SmartSpeedApi;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
@@ -55,6 +57,10 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
   List<WorkoutData> _workoutData = [];
   List<Map<String, dynamic>> _exerciseOptions = [];
   Map<String, dynamic>? _selectedExercise;
+
+  List<SmartSpeedTest> _smartSpeedTests = [];
+  SmartSpeedTest? _selectedSmartSpeedTest;
+  bool _isLoadingTests = false;
 
   bool _isLoadingWorkouts = false;
 
@@ -125,6 +131,34 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
     }
   }
 
+  Future<void> _loadSmartSpeedTests(String? valdId) async {
+    if (valdId == null || valdId.isEmpty) {
+      setState(() {
+        _smartSpeedTests = [];
+        _selectedSmartSpeedTest = null;
+      });
+      return;
+    }
+
+    try {
+      setState(() {
+        _isLoadingTests = true;
+      });
+
+      final tests = await SmartSpeedApi.ValdApiService.fetchsmartSpeedTests(valdId);
+      setState(() {
+        _smartSpeedTests = tests;
+        _selectedSmartSpeedTest = tests.isNotEmpty ? tests.first : null;
+      });
+    } catch (e) {
+      print('❌ Error fetching SmartSpeed tests: $e');
+    } finally {
+      setState(() {
+        _isLoadingTests = false;
+      });
+    }
+  }
+
   Future<void> _loadAthletes() async {
     try {
       final allAthletes = await ApiService.fetchAthletes();
@@ -177,9 +211,12 @@ if (valdMatch.isNotEmpty) {
   print('⚠️ No Vald match for ${athlete.first_name} ${athlete.last_name}');
 }
 
-}
+  }
 
-await _loadWorkoutData(matchedIds);
+  await _loadWorkoutData(matchedIds);
+  if (_selectedAthlete?.valdId != null) {
+    await _loadSmartSpeedTests(_selectedAthlete!.valdId);
+  }
 
     } catch (e) {
       print('❌ Error loading athletes or workout data: $e');
@@ -221,6 +258,7 @@ await _loadWorkoutData(matchedIds);
                         if (matches.isNotEmpty) {
                           final match = matches.first;
                           _loadWorkoutData([match.id]);
+                          await _loadSmartSpeedTests(newValue?.valdId);
                         } else {
                           print('⚠️ No matching Output athlete for ${newValue?.first_name} ${newValue?.last_name}');
                         }
@@ -266,6 +304,62 @@ await _loadWorkoutData(matchedIds);
                             child: Text(exercise['name']),
                           );
                         }).toList(),
+                      ),
+                    const SizedBox(height: 12),
+                    if (_smartSpeedTests.isNotEmpty)
+                      DropdownButton<SmartSpeedTest>(
+                        value: _selectedSmartSpeedTest,
+                        isExpanded: true,
+                        hint: const Text('Select SmartSpeed Test'),
+                        onChanged: (SmartSpeedTest? newTest) {
+                          setState(() {
+                            _selectedSmartSpeedTest = newTest;
+                          });
+                        },
+                        items: _smartSpeedTests.map((test) {
+                          return DropdownMenuItem<SmartSpeedTest>(
+                            value: test,
+                            child: Text(test.testName),
+                          );
+                        }).toList(),
+                      ),
+                    if (_selectedSmartSpeedTest != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12.0),
+                        child: Card(
+                          elevation: 3,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Test: \${_selectedSmartSpeedTest!.testName} (\${_selectedSmartSpeedTest!.testTypeName})',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                Text('Date: \${_selectedSmartSpeedTest!.testDateUtc.toLocal().toIso8601String().split("T").first}'),
+                                Text('Valid: \${_selectedSmartSpeedTest!.isValid}'),
+                                Text('Device Count: \${_selectedSmartSpeedTest!.deviceCount}'),
+                                Text('Rep Count: \${_selectedSmartSpeedTest!.repCount}'),
+                                if (_selectedSmartSpeedTest!.runningSummaryFields != null) ...[
+                                  const SizedBox(height: 8),
+                                  const Text('Running Summary:', style: TextStyle(fontWeight: FontWeight.w500)),
+                                  Text('Total Time: \${_selectedSmartSpeedTest!.runningSummaryFields!.totalTimeSeconds}s'),
+                                  Text('Best Split: \${_selectedSmartSpeedTest!.runningSummaryFields!.bestSplitSeconds}s'),
+                                  Text('Average Split: \${_selectedSmartSpeedTest!.runningSummaryFields!.splitAverageSeconds}s'),
+                                  if (_selectedSmartSpeedTest!.runningSummaryFields!.gateSummaryFields != null) ...[
+                                    const SizedBox(height: 8),
+                                    const Text('Gate Summary:', style: TextStyle(fontWeight: FontWeight.w500)),
+                                    Text('Split 1: \${_selectedSmartSpeedTest!.runningSummaryFields!.gateSummaryFields!.splitOne}s'),
+                                    Text('Split 2: \${_selectedSmartSpeedTest!.runningSummaryFields!.gateSummaryFields!.splitTwo}s'),
+                                    Text('Split 3: \${_selectedSmartSpeedTest!.runningSummaryFields!.gateSummaryFields!.splitThree}s'),
+                                    Text('Split 4: \${_selectedSmartSpeedTest!.runningSummaryFields!.gateSummaryFields!.splitFour}s'),
+                                  ],
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     const SizedBox(height: 20),
                     if (_selectedAthlete != null)
