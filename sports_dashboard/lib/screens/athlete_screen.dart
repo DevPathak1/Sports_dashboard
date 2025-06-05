@@ -4,6 +4,7 @@ import 'package:sports_dashboard/models/workout_data.dart';
 import 'package:sports_dashboard/services/api_service.dart';
 import 'package:sports_dashboard/services/api_output.dart';
 import 'package:sports_dashboard/services/api_vald.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
@@ -19,6 +20,26 @@ Future<Uint8List> fetchImageBytes(String imageUrl, String token) async {
     throw Exception('Failed to load image');
   }
 }
+Future<Uint8List> _loadAuthenticatedImage(String url) async {
+  final token = dotenv.env['API_TOKEN'];
+  final response = await http.get(
+    Uri.parse(url),
+    headers: {'Authorization': 'Bearer $token'},
+  );
+
+  print('🔍 Status: ${response.statusCode}');
+  print('🔍 Content-Type: ${response.headers['content-type']}');
+  print('🔍 Redirected to: ${response.request?.url}');
+
+  if (response.statusCode == 200 &&
+      response.headers['content-type']?.startsWith('image/') == true) {
+    return response.bodyBytes;
+  } else {
+    throw Exception('Invalid image or unauthorized: ${response.statusCode}');
+  }
+}
+
+
 
 class AthleteDropdownScreen extends StatefulWidget {
   const AthleteDropdownScreen({super.key});
@@ -143,7 +164,7 @@ for (final athlete in athletes) {
     print('⚠️ No Output match for ${athlete.first_name} ${athlete.last_name}');
   }
 
-/*  final valdMatch = valdAthletes.where(
+final valdMatch = valdAthletes.where(
   (vald) =>
     _normalize(vald.first_name) == _normalize(athlete.first_name) &&
     _normalize(vald.last_name) == _normalize(athlete.last_name),
@@ -154,7 +175,7 @@ if (valdMatch.isNotEmpty) {
   athlete.valdId = valdMatch.first.id;
 } else {
   print('⚠️ No Vald match for ${athlete.first_name} ${athlete.last_name}');
-}*/
+}
 
 }
 
@@ -265,13 +286,21 @@ await _loadWorkoutData(matchedIds);
                               Text('Birthday: ${_selectedAthlete!.birthday}'),
                               const SizedBox(height: 16),
                               if (_selectedAthlete!.photo_url.isNotEmpty)
-                                Center(
-                                  child: Image.network(
+                                FutureBuilder<Uint8List>(
+                                  future: _loadAuthenticatedImage(
                                     'https://backend-us.openfield.catapultsports.com${_selectedAthlete!.photo_url}',
-                                    height: 150,
-                                    errorBuilder: (_, __, ___) =>
-                                        const Icon(Icons.broken_image, size: 100),
                                   ),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      return const Center(child: CircularProgressIndicator());
+                                    } else if (snapshot.hasError || !snapshot.hasData) {
+                                      return const Center(child: Icon(Icons.broken_image, size: 100));
+                                    } else {
+                                      return Center(
+                                        child: Image.memory(snapshot.data!, height: 150),
+                                      );
+                                    }
+                                  },
                                 ),
                             ],
                           ),
