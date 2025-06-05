@@ -1,33 +1,48 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../models/smartspeed.dart';
+import 'vald_auth_service.dart'; // your token file
 
-class ValdApiService {
-  static final String _baseUrl = dotenv.env['SMARTSPEED_ENDPOINT']!;
-  static final String _token = dotenv.env['SMARTSPEED_TOKEN']!;
-  static final String _teamId = dotenv.env['TENANT_ID']!;
-  static final String _groupId = dotenv.env['GROUP_ID']!;
+class SmartSpeedService {
+  static final String? _baseUrl = dotenv.env['SMARTSPEED_API_ENDPOINT'];
+  static final String? _tenantId = dotenv.env['tenant_id'];
+  static final String? _groupId = dotenv.env['group_id'];
 
- static Future<List<SmartSpeedTest>> fetchsmartSpeedTests(String athleteId, {int page = 1}) async {
-  final uri = Uri.parse(
-    '$_baseUrl/v1/team/$_teamId/tests?AthleteId=$athleteId&GroupUnderTestId=$_groupId&Page=$page',
-  );
+  /// Fetch test results from SmartSpeed API for a given athlete
+  static Future<Map<String, dynamic>> fetchSmartSpeedTest({
+    required String athleteId,
+    int page = 1,
+  }) async {
+    if (_baseUrl == null || _tenantId == null || _groupId == null) {
+      throw Exception('❌ Missing required environment variables for SmartSpeed API.');
+    }
 
-  final response = await http.get(
-    uri,
-    headers: {
-      'Authorization': 'Bearer $_token',
-      'accept': 'text/plain',
-    },
-  );
+    final token = await ValdAuthService.getToken();
+    final url = Uri.parse(
+      '$_baseUrl/v1/team/$_tenantId/tests?AthleteId=$athleteId&GroupUnderTestId=$_groupId&Page=$page',
+    );
 
-  if (response.statusCode == 200) {
-    final List<dynamic> body = jsonDecode(response.body);
-    return body.map((json) => SmartSpeedTest.fromJson(json)).toList();
-  } else {
-    throw Exception('Failed to fetch VALD test data');
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'accept': 'application/json', // or 'text/plain' if required by API
+        },
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Successfully fetched test data for athlete $athleteId');
+        return json.decode(response.body);
+      } else {
+        print('❌ Failed to fetch test data: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to fetch SmartSpeed tests');
+      }
+    } catch (e) {
+      print('❌ Exception while fetching SmartSpeed data: $e');
+      rethrow;
+    }
   }
 }
-}
+
 
