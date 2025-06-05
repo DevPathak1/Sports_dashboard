@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/smartspeed.dart';
 
-class ValdApiService {
+class SmartSpeedApiService {
   static final String _baseUrl = dotenv.env['SMARTSPEED_ENDPOINT']!;
   static final String _token = dotenv.env['SMARTSPEED_TOKEN']!;
   static final String _teamId = dotenv.env['TENANT_ID']!;
