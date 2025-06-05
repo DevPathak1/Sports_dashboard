@@ -9,6 +9,7 @@ class Athlete {
   final String birthday;
   final String current_team_id;
   String? outputId;
+  String? valdId;
 
   Athlete({
     required this.id,
@@ -20,6 +21,7 @@ class Athlete {
     required this.birthday,
     required this.current_team_id,
     this.outputId,
+    this.valdId,
   });
 
   factory Athlete.fromJson(Map<String, dynamic> json) {

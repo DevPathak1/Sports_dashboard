@@ -3,6 +3,10 @@ import 'package:sports_dashboard/models/athlete.dart';
 import 'package:sports_dashboard/models/workout_data.dart';
 import 'package:sports_dashboard/services/api_service.dart';
 import 'package:sports_dashboard/services/api_output.dart';
+import 'package:sports_dashboard/services/api_vald.dart';
+import 'package:sports_dashboard/models/smartspeed.dart';
+import 'package:sports_dashboard/services/smartspeed_api.dart' as SmartSpeedApi;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
@@ -18,6 +22,26 @@ Future<Uint8List> fetchImageBytes(String imageUrl, String token) async {
     throw Exception('Failed to load image');
   }
 }
+Future<Uint8List> _loadAuthenticatedImage(String url) async {
+  final token = dotenv.env['API_TOKEN'];
+  final response = await http.get(
+    Uri.parse(url),
+    headers: {'Authorization': 'Bearer $token'},
+  );
+
+  print('🔍 Status: ${response.statusCode}');
+  print('🔍 Content-Type: ${response.headers['content-type']}');
+  print('🔍 Redirected to: ${response.request?.url}');
+
+  if (response.statusCode == 200 &&
+      response.headers['content-type']?.startsWith('image/') == true) {
+    return response.bodyBytes;
+  } else {
+    throw Exception('Invalid image or unauthorized: ${response.statusCode}');
+  }
+}
+
+
 
 class AthleteDropdownScreen extends StatefulWidget {
   const AthleteDropdownScreen({super.key});
@@ -33,6 +57,10 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
   List<WorkoutData> _workoutData = [];
   List<Map<String, dynamic>> _exerciseOptions = [];
   Map<String, dynamic>? _selectedExercise;
+
+  List<SmartSpeedTest> _smartSpeedTests = [];
+  SmartSpeedTest? _selectedSmartSpeedTest;
+  bool _isLoadingTests = false;
 
   bool _isLoadingWorkouts = false;
 
@@ -68,8 +96,14 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
           exerciseId: _selectedExercise!['id'],
         );
 
-        final parsed = rawWorkouts.map((item) => WorkoutData.fromJson(item)).toList();
-        allWorkouts.addAll(parsed);
+        try {
+          final parsed = rawWorkouts.map((item) => WorkoutData.fromJson(item)).toList();
+          allWorkouts.addAll(parsed);
+        } catch (e, stack) {
+        print('❌ Error parsing workouts: $e');
+        print(stack);
+}
+
 
         currentStart = cappedEnd.add(const Duration(days: 1));
       }
@@ -97,6 +131,34 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
     }
   }
 
+  Future<void> _loadSmartSpeedTests(String? valdId) async {
+    if (valdId == null || valdId.isEmpty) {
+      setState(() {
+        _smartSpeedTests = [];
+        _selectedSmartSpeedTest = null;
+      });
+      return;
+    }
+
+    try {
+      setState(() {
+        _isLoadingTests = true;
+      });
+
+      final tests = await SmartSpeedApi.ValdApiService.fetchsmartSpeedTests(valdId);
+      setState(() {
+        _smartSpeedTests = tests;
+        _selectedSmartSpeedTest = tests.isNotEmpty ? tests.first : null;
+      });
+    } catch (e) {
+      print('❌ Error fetching SmartSpeed tests: $e');
+    } finally {
+      setState(() {
+        _isLoadingTests = false;
+      });
+    }
+  }
+
   Future<void> _loadAthletes() async {
     try {
       final allAthletes = await ApiService.fetchAthletes();
@@ -110,35 +172,57 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
       print(athletes);
 
       final outputAthletes = await OutputApiService.fetchOutputAthletes();
-      final exercises = await OutputApiService.fetchExerciseMetadata();
+      final valdAthletes = await ValdApiService().fetchAthletes(
+        '2549e0dc-292c-4820-a9ec-1f72652178e1',
+        'a5132d0c-bddf-4827-8571-fec043a2c87f',
+      );
+final exercises = await OutputApiService.fetchExerciseMetadata();
 
-      setState(() {
-        _athletes = athletes;
-        _exerciseOptions = exercises;
-        if (athletes.isNotEmpty) {
-          _selectedAthlete = athletes.first;
-        }
-        if (exercises.isNotEmpty) {
-          _selectedExercise = exercises.first;
-        }
-      });
+setState(() {
+  _athletes = athletes;
+  _exerciseOptions = exercises;
+  if (athletes.isNotEmpty) {
+    _selectedAthlete = athletes.first;
+  }
+  if (exercises.isNotEmpty) {
+    _selectedExercise = exercises.first;
+  }
+});
 
-      final matchedIds = <String>[];
+final matchedIds = <String>[];
 
-      for (final athlete in athletes) {
-        final match = outputAthletes.where(
-          (out) =>
-            _normalize(out.first_name) == _normalize(athlete.first_name) &&
-            _normalize(out.last_name) == _normalize(athlete.last_name),
-        ).toList();
-        if (match != null) {
-          matchedIds.add(match.first.id);
-        } else {
-          print('⚠️ No match for ${athlete.first_name} ${athlete.last_name}');
-        }
-      }
+for (final athlete in athletes) {
+  final match = outputAthletes.where(
+    (out) =>
+      _normalize(out.first_name) == _normalize(athlete.first_name) &&
+      _normalize(out.last_name) == _normalize(athlete.last_name),
+  ).toList();
+  if (match.isNotEmpty) {
+    matchedIds.add(match.first.id);
+  } else {
+    print('⚠️ No Output match for ${athlete.first_name} ${athlete.last_name}');
+  }
 
-      await _loadWorkoutData(matchedIds);
+final valdMatch = valdAthletes.where(
+  (vald) =>
+    _normalize(vald.first_name) == _normalize(athlete.first_name) &&
+    _normalize(vald.last_name) == _normalize(athlete.last_name),
+).toList();
+
+if (valdMatch.isNotEmpty) {
+  print('✅ Found Vald match for ${athlete.first_name} ${athlete.last_name}');
+  athlete.valdId = valdMatch.first.id;
+} else {
+  print('⚠️ No Vald match for ${athlete.first_name} ${athlete.last_name}');
+}
+
+  }
+
+  await _loadWorkoutData(matchedIds);
+  if (_selectedAthlete?.valdId != null) {
+    await _loadSmartSpeedTests(_selectedAthlete!.valdId);
+  }
+
     } catch (e) {
       print('❌ Error loading athletes or workout data: $e');
     }
@@ -179,6 +263,7 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
                         if (matches.isNotEmpty) {
                           final match = matches.first;
                           _loadWorkoutData([match.id]);
+                          await _loadSmartSpeedTests(newValue?.valdId);
                         } else {
                           print('⚠️ No matching Output athlete for ${newValue?.first_name} ${newValue?.last_name}');
                         }
@@ -225,6 +310,62 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
                           );
                         }).toList(),
                       ),
+                    const SizedBox(height: 12),
+                    if (_smartSpeedTests.isNotEmpty)
+                      DropdownButton<SmartSpeedTest>(
+                        value: _selectedSmartSpeedTest,
+                        isExpanded: true,
+                        hint: const Text('Select SmartSpeed Test'),
+                        onChanged: (SmartSpeedTest? newTest) {
+                          setState(() {
+                            _selectedSmartSpeedTest = newTest;
+                          });
+                        },
+                        items: _smartSpeedTests.map((test) {
+                          return DropdownMenuItem<SmartSpeedTest>(
+                            value: test,
+                            child: Text(test.testName),
+                          );
+                        }).toList(),
+                      ),
+                    if (_selectedSmartSpeedTest != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12.0),
+                        child: Card(
+                          elevation: 3,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Test: \${_selectedSmartSpeedTest!.testName} (\${_selectedSmartSpeedTest!.testTypeName})',
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                Text('Date: \${_selectedSmartSpeedTest!.testDateUtc.toLocal().toIso8601String().split("T").first}'),
+                                Text('Valid: \${_selectedSmartSpeedTest!.isValid}'),
+                                Text('Device Count: \${_selectedSmartSpeedTest!.deviceCount}'),
+                                Text('Rep Count: \${_selectedSmartSpeedTest!.repCount}'),
+                                if (_selectedSmartSpeedTest!.runningSummaryFields != null) ...[
+                                  const SizedBox(height: 8),
+                                  const Text('Running Summary:', style: TextStyle(fontWeight: FontWeight.w500)),
+                                  Text('Total Time: \${_selectedSmartSpeedTest!.runningSummaryFields!.totalTimeSeconds}s'),
+                                  Text('Best Split: \${_selectedSmartSpeedTest!.runningSummaryFields!.bestSplitSeconds}s'),
+                                  Text('Average Split: \${_selectedSmartSpeedTest!.runningSummaryFields!.splitAverageSeconds}s'),
+                                  if (_selectedSmartSpeedTest!.runningSummaryFields!.gateSummaryFields != null) ...[
+                                    const SizedBox(height: 8),
+                                    const Text('Gate Summary:', style: TextStyle(fontWeight: FontWeight.w500)),
+                                    Text('Split 1: \${_selectedSmartSpeedTest!.runningSummaryFields!.gateSummaryFields!.splitOne}s'),
+                                    Text('Split 2: \${_selectedSmartSpeedTest!.runningSummaryFields!.gateSummaryFields!.splitTwo}s'),
+                                    Text('Split 3: \${_selectedSmartSpeedTest!.runningSummaryFields!.gateSummaryFields!.splitThree}s'),
+                                    Text('Split 4: \${_selectedSmartSpeedTest!.runningSummaryFields!.gateSummaryFields!.splitFour}s'),
+                                  ],
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 20),
                     if (_selectedAthlete != null)
                       Card(
@@ -244,13 +385,21 @@ class _AthleteDropdownScreenState extends State<AthleteDropdownScreen> {
                               Text('Birthday: ${_selectedAthlete!.birthday}'),
                               const SizedBox(height: 16),
                               if (_selectedAthlete!.photo_url.isNotEmpty)
-                                Center(
-                                  child: Image.network(
+                                FutureBuilder<Uint8List>(
+                                  future: _loadAuthenticatedImage(
                                     'https://backend-us.openfield.catapultsports.com${_selectedAthlete!.photo_url}',
-                                    height: 150,
-                                    errorBuilder: (_, __, ___) =>
-                                        const Icon(Icons.broken_image, size: 100),
                                   ),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState == ConnectionState.waiting) {
+                                      return const Center(child: CircularProgressIndicator());
+                                    } else if (snapshot.hasError || !snapshot.hasData) {
+                                      return const Center(child: Icon(Icons.broken_image, size: 100));
+                                    } else {
+                                      return Center(
+                                        child: Image.memory(snapshot.data!, height: 150),
+                                      );
+                                    }
+                                  },
                                 ),
                             ],
                           ),
